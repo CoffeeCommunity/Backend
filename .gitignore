@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Spring config
+application.yml
+application-*.yml
+
+# i18n messages
+messages_*.yml
