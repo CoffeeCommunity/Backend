@@ -1,0 +1,5 @@
+spring:
+    application:
+        name:backend
+jwt:
+    secret: ciA/eYWWOntbKqFxqUjynmn6joSUrdurrXpIAv0wc7GdVgwJBq8SaajMZ+SSzi20YObTHy4iN7wmEvov326pQw==
