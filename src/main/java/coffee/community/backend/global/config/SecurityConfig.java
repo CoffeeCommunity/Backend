@@ -14,6 +14,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -25,61 +27,67 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    /** ✅ PasswordEncoder Bean */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    /** ✅ Security Filter Chain */
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ObjectMapper objectMapper
-    ) throws Exception {
+    ) {
 
-        http
-                // CSRF 비활성화 (JWT)
-                .csrf(AbstractHttpConfigurer::disable)
+        try {
+            http
+                    // CSRF 비활성화 (JWT)
+                    .csrf(AbstractHttpConfigurer::disable)
 
-                // 세션 사용 안 함
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                    // 세션 미사용
+                    .sessionManagement(session ->
+                            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                    )
 
-                // 권한 설정
-                .authorizeHttpRequests(auth -> auth
-                        // Swagger
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**"
-                        ).permitAll()
+                    // 권한 설정
+                    .authorizeHttpRequests(auth -> auth
+                            .requestMatchers(
+                                    "/swagger-ui/**",
+                                    "/v3/api-docs/**"
+                            ).permitAll()
+                            .requestMatchers("/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                            .anyRequest().authenticated()
+                    )
 
-                        // Auth
-                        .requestMatchers("/auth/**").permitAll()
+                    // JWT 필터
+                    .addFilterBefore(
+                            jwtAuthenticationFilter,
+                            UsernamePasswordAuthenticationFilter.class
+                    )
 
-                        // 조회 API 허용 예시
-                        .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                    // 예외 처리
+                    .exceptionHandling(ex -> ex
+                            .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401
+                            .accessDeniedHandler((request, response, accessDeniedException) -> {
 
-                        // 나머지는 인증 필요
-                        .anyRequest().authenticated()
-                )
+                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                response.setCharacterEncoding("UTF-8");
 
-                // JWT 필터 등록
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
+                                ApiResponse<String> body =
+                                        ApiResponse.error("접근 권한이 없습니다.");
 
-                // 인증 / 인가 예외 처리
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                objectMapper.writeValue(response.getWriter(), body);
+                            })
+                    );
 
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.setCharacterEncoding("UTF-8");
+            return http.build();
 
-                            ApiResponse<String> body =
-                                    ApiResponse.error("접근 권한이 없습니다.");
-
-                            objectMapper.writeValue(response.getWriter(), body);
-                        })
-                );
-
-        return http.build();
+        } catch (Exception e) {
+            // ❗ Security 설정 실패는 치명적이므로 런타임 예외로 감싸서 올림
+            throw new IllegalStateException("SecurityConfig 설정 중 오류 발생", e);
+        }
     }
 }

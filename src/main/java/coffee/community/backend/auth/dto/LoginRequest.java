@@ -1,16 +1,16 @@
 package coffee.community.backend.auth.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 
 @Getter
-public class OAuthLoginRequest {
+public class LoginRequest {
 
-    @NotBlank
-    private String provider;   // google, kakao, github ...
-
+    @Email
     @NotBlank
     private String email;
 
-    private String nickname;
+    @NotBlank
+    private String password;
 }

@@ -4,8 +4,8 @@ import coffee.community.backend.global.common.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -22,16 +22,18 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(
             @NonNull HttpServletRequest request,
-            HttpServletResponse response,
+            @NonNull HttpServletResponse response,
             @NonNull AuthenticationException authException
     ) throws IOException {
 
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        int status = HttpServletResponse.SC_UNAUTHORIZED;
+
+        response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        ApiResponse<String> body =
-                ApiResponse.error("인증이 필요합니다.");
+        ApiResponse<Void> body =
+                ApiResponse.error(status, "인증이 필요합니다.", null);
 
         objectMapper.writeValue(response.getWriter(), body);
     }

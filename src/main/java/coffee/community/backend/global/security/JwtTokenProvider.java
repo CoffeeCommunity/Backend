@@ -1,42 +1,73 @@
 package coffee.community.backend.global.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Date;
+import java.util.List;
+
 @Component
-@RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+    private final Key key;
+
+    private final long accessTokenExpirationTime;
+
+    public JwtTokenProvider(
+            @Value("${jwt.secret}") String secretKey,
+            @Value("${jwt.access-token-expiration}") long accessTokenExpirationTime
+    ) {
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        this.accessTokenExpirationTime = accessTokenExpirationTime;
+    }
+
+    /* ================= 토큰 생성 ================= */
+
+    public String createAccessToken(Long userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + accessTokenExpirationTime);
+
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(key) // ✅ deprecated 아님
+                .compact();
+    }
+
+    /* ================= 토큰 검증 ================= */
 
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(secretKey.getBytes())
+                    .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token);
             return true;
-        } catch (Exception _) {
+        } catch (JwtException | IllegalArgumentException _) {
             return false;
         }
     }
 
+    /* ================= Authentication 생성 ================= */
+
     public Authentication getAuthentication(String token, HttpServletRequest request) {
-        UserDetails userDetails = loadUserByToken(token);
+        Long userId = getUserId(token);
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        userDetails,
+                        userId,
                         null,
-                        userDetails.getAuthorities()
+                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
                 );
 
         authentication.setDetails(
@@ -46,12 +77,15 @@ public class JwtTokenProvider {
         return authentication;
     }
 
-    // ✅ 임시 사용자
-    private UserDetails loadUserByToken(String token) {
-        return org.springframework.security.core.userdetails.User
-                .withUsername("temporary-user")
-                .password("")
-                .authorities("ROLE_USER")
-                .build();
+    /* ================= userId 추출 ================= */
+
+    public Long getUserId(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return Long.valueOf(claims.getSubject());
     }
 }

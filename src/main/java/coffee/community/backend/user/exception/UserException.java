@@ -1,4 +1,10 @@
 package coffee.community.backend.user.exception;
 
-public class UserException {
+import coffee.community.backend.global.exception.BusinessException;
+
+public class UserException extends BusinessException {
+
+    public UserException(UserErrorCode errorCode) {
+        super(errorCode);
+    }
 }
