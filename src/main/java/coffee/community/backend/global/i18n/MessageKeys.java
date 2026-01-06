@@ -18,6 +18,7 @@ public final class MessageKeys {
         public static final String LOGIN_FAILED = "auth.login.failed";
         public static final String TOKEN_EXPIRED = "auth.token.expired";
         public static final String UNAUTHORIZED = "auth.unauthorized";
+        public static final String PHONE_NOT_VERIFIED = "auth.phone.not.verified";
     }
 
     /* =========================

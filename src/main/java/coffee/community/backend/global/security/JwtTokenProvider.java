@@ -1,6 +1,7 @@
 package coffee.community.backend.global.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,8 +10,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
@@ -24,9 +23,15 @@ public class JwtTokenProvider {
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secretKey,
-            @Value("${jwt.access-token-expiration}") long accessTokenExpirationTime
+            @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationTime
     ) {
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        System.out.println("▶ JwtTokenProvider constructor called");
+        System.out.println("▶ jwt.secret = " + secretKey);
+        System.out.println("▶ accessTokenExpirationTime = " + accessTokenExpirationTime);
+
+        this.key = Keys.hmacShaKeyFor(
+                Decoders.BASE64.decode(secretKey)
+        );
         this.accessTokenExpirationTime = accessTokenExpirationTime;
     }
 

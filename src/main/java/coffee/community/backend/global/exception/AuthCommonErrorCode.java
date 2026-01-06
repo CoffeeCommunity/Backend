@@ -1,24 +1,27 @@
 package coffee.community.backend.global.exception;
 
+import coffee.community.backend.global.i18n.CommonMessageKey;
+import coffee.community.backend.global.i18n.MessageKey;
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public enum AuthCommonErrorCode implements ErrorCode {
 
-    UNAUTHORIZED(
-            HttpStatus.UNAUTHORIZED,
-            "auth.unauthorized"
-    );
+    LOGIN_FAILED(CommonMessageKey.AUTH_LOGIN_FAILED, HttpStatus.UNAUTHORIZED),
+    TOKEN_EXPIRED(CommonMessageKey.AUTH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(CommonMessageKey.AUTH_UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
 
+    private final MessageKey messageKey;
     private final HttpStatus httpStatus;
-    private final String messageKey;
 
-    AuthCommonErrorCode(HttpStatus httpStatus, String messageKey) {
-        this.httpStatus = httpStatus;
+    AuthCommonErrorCode(MessageKey messageKey, HttpStatus httpStatus) {
         this.messageKey = messageKey;
+        this.httpStatus = httpStatus;
     }
 
     @Override
-    public String getMessageKey() {
+    public MessageKey getMessageKey() {
         return messageKey;
     }
 
