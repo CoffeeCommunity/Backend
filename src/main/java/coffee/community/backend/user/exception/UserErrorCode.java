@@ -10,7 +10,8 @@ import org.springframework.http.HttpStatus;
 public enum UserErrorCode implements ErrorCode {
 
     USER_NOT_FOUND(CommonMessageKey.USER_NOT_FOUND, HttpStatus.NOT_FOUND),
-    UNAUTHORIZED(CommonMessageKey.USER_UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+    PHONE_NUMBER_DUPLICATE(CommonMessageKey.PHONE_NUMBER_DUPLICATE, HttpStatus.CONFLICT),
+    NICKNAME_DUPLICATE(CommonMessageKey.NICKNAME_DUPLICATE, HttpStatus.CONFLICT);
 
     private final MessageKey messageKey;
     private final HttpStatus httpStatus;

@@ -15,6 +15,8 @@ public enum AuthErrorCode implements MessageKey {
             "user.duplicate-email",
             HttpStatus.CONFLICT
     ),
+    NICKNAME_ALREADY_EXISTS("user.duplicate-nickname", HttpStatus.CONFLICT),
+    UNAUTHORIZED("auth.unauthorized", HttpStatus.UNAUTHORIZED),
     PHONE_ALREADY_EXISTS(
             "user.duplicate-phone",
             HttpStatus.CONFLICT

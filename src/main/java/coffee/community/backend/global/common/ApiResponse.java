@@ -26,17 +26,25 @@ public class ApiResponse<T> {
         );
     }
 
-    public static ApiResponse<Void> ok() {
+    public static <T> ApiResponse<T> ok(T data, String customMessage) {
         return new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "SUCCESS",
+                customMessage,
+                data
+        );
+    }
+
+    /** data 없이 메시지만 */
+    public static <T> ApiResponse<T> ok(String customMessage) {
+        return new ApiResponse<>(
+                HttpStatus.OK.value(),
+                customMessage,
                 null
         );
     }
 
     /* ================= 에러 응답 ================= */
 
-    /** 상태 코드 직접 지정 */
     public static <T> ApiResponse<T> error(int status, String message, T data) {
         return new ApiResponse<>(
                 status,
@@ -45,7 +53,6 @@ public class ApiResponse<T> {
         );
     }
 
-    /** ⭐ 가장 많이 쓰는 기본 에러 */
     public static <T> ApiResponse<T> error(String message) {
         return new ApiResponse<>(
                 HttpStatus.BAD_REQUEST.value(),
