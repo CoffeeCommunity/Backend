@@ -1,22 +1,21 @@
-package coffee.community.backend.user.exception;
+package coffee.community.backend.global.exception;
 
-import coffee.community.backend.global.exception.ErrorCode;
 import coffee.community.backend.global.i18n.CommonMessageKey;
 import coffee.community.backend.global.i18n.MessageKey;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
-public enum UserErrorCode implements ErrorCode {
+public enum AuthCommonErrorCode implements ErrorCode {
 
-    USER_NOT_FOUND(CommonMessageKey.USER_NOT_FOUND, HttpStatus.NOT_FOUND),
-    PHONE_NUMBER_DUPLICATE(CommonMessageKey.PHONE_NUMBER_DUPLICATE, HttpStatus.CONFLICT),
-    NICKNAME_DUPLICATE(CommonMessageKey.NICKNAME_DUPLICATE, HttpStatus.CONFLICT);
+    LOGIN_FAILED(CommonMessageKey.AUTH_LOGIN_FAILED, HttpStatus.UNAUTHORIZED),
+    TOKEN_EXPIRED(CommonMessageKey.AUTH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(CommonMessageKey.AUTH_UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
 
     private final MessageKey messageKey;
     private final HttpStatus httpStatus;
 
-    UserErrorCode(MessageKey messageKey, HttpStatus httpStatus) {
+    AuthCommonErrorCode(MessageKey messageKey, HttpStatus httpStatus) {
         this.messageKey = messageKey;
         this.httpStatus = httpStatus;
     }

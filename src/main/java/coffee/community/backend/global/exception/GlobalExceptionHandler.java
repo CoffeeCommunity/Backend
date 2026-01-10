@@ -16,16 +16,19 @@ public class GlobalExceptionHandler {
     private final MessageSource messageSource;
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<String>> handle(BusinessException e, Locale locale) {
+    public ResponseEntity<ApiResponse<String>> handle(
+            BusinessException e,
+            Locale locale
+    ) {
 
         String message = messageSource.getMessage(
-                e.getErrorCode().getMessageKey(),
+                e.getMessageKey().key(),   // MessageKey → String
                 null,
                 locale
         );
 
         return ResponseEntity
-                .status(e.getErrorCode().getHttpStatus())
+                .status(e.getHttpStatus())
                 .body(ApiResponse.error(message));
     }
 }
