@@ -25,10 +25,6 @@ public class JwtTokenProvider {
             @Value("${jwt.secret}") String secretKey,
             @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationTime
     ) {
-        System.out.println("▶ JwtTokenProvider constructor called");
-        System.out.println("▶ jwt.secret = " + secretKey);
-        System.out.println("▶ accessTokenExpirationTime = " + accessTokenExpirationTime);
-
         this.key = Keys.hmacShaKeyFor(
                 Decoders.BASE64.decode(secretKey)
         );
