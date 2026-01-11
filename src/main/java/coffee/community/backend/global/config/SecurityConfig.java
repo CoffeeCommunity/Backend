@@ -52,12 +52,25 @@ public class SecurityConfig {
 
                     // 권한 설정
                     .authorizeHttpRequests(auth -> auth
+                            // swagger
                             .requestMatchers(
                                     "/swagger-ui/**",
                                     "/v3/api-docs/**"
                             ).permitAll()
-                            .requestMatchers("/auth/**").permitAll()
+
+                            // ✅ 인증 없이 가능한 AUTH API (POST만!)
+                            .requestMatchers(HttpMethod.POST,
+                                    "/auth/signup",
+                                    "/auth/login",
+                                    "/auth/oauth/login",
+                                    "/auth/phone/send",
+                                    "/auth/phone/verify"
+                            ).permitAll()
+
+                            // ✅ 공개 GET API
                             .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+
+                            // ❌ 그 외는 전부 인증 필요
                             .anyRequest().authenticated()
                     )
 

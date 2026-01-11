@@ -13,12 +13,12 @@ public interface AuthService {
     /**
      * 일반 로그인
      */
-    TokenResponse login(LoginRequest request);
+    LoginResponse login(LoginRequest request);
 
     /**
      * OAuth 로그인
      */
-    TokenResponse oauthLogin(OAuthLoginRequest request);
+    LoginResponse oauthLogin(OAuthLoginRequest request);
 
     /**
      * 회원 탈퇴

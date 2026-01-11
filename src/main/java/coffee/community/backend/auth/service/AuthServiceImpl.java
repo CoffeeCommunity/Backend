@@ -4,11 +4,13 @@ import coffee.community.backend.auth.dto.*;
 import coffee.community.backend.auth.exception.AuthErrorCode;
 import coffee.community.backend.auth.exception.AuthException;
 import coffee.community.backend.global.security.JwtTokenProvider;
+import coffee.community.backend.user.dto.UserResponse;
 import coffee.community.backend.user.entity.Role;
 import coffee.community.backend.user.entity.User;
 import coffee.community.backend.user.repository.UserRepository;
 import coffee.community.backend.verification.service.PhoneVerificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,34 +28,57 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PhoneVerificationService phoneVerificationService;
 
+    @Value("${app.user.default-profile-image-url}")
+    private String defaultProfileImageUrl;
+
+    private LoginResponse buildLoginResponse(User user) {
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+        return new LoginResponse(
+                UserResponse.from(user),
+                accessToken,
+                refreshToken,
+                jwtTokenProvider.getAccessTokenExpireSeconds()
+        );
+    }
+
     @Override
     @Transactional
     public Long signup(SignupRequest request) {
-        // 1. phone 토큰 검증
+
+        // 1. 휴대폰 인증 토큰 검증
         boolean verified = phoneVerificationService.verifyToken(
-                request.getPhoneNumber(), request.getVerificationToken());
+                request.getPhoneNumber(), request.getVerificationToken()
+        );
         if (!verified) {
             throw new AuthException(AuthErrorCode.PHONE_NOT_VERIFIED, HttpStatus.BAD_REQUEST);
         }
 
-        // 2. 3중 중복 체크
+        // 2. 중복 체크
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS, HttpStatus.CONFLICT);
         }
-        if (userRepository.existsByNickname(request.getNickname())) {  // 추가!
+        if (userRepository.existsByNickname(request.getNickname())) {
             throw new AuthException(AuthErrorCode.NICKNAME_ALREADY_EXISTS, HttpStatus.CONFLICT);
         }
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
             throw new AuthException(AuthErrorCode.PHONE_ALREADY_EXISTS, HttpStatus.CONFLICT);
         }
 
-        // 3. User 생성 (profileImageUrl 추가)
+        // ✅ 3. 프로필 이미지 URL 결정 (핵심)
+        String profileImageUrl = request.getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+            profileImageUrl = defaultProfileImageUrl;
+        }
+
+        // 4. User 생성
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
                 .phoneNumber(request.getPhoneNumber())
-                .profileImageUrl(request.getProfileImageUrl())  // 추가!
+                .profileImageUrl(profileImageUrl)
                 .role(Role.USER)
                 .deleted(false)
                 .build();
@@ -62,7 +87,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() ->
@@ -86,28 +111,36 @@ public class AuthServiceImpl implements AuthService {
             );
         }
 
-        return new TokenResponse(
-                jwtTokenProvider.createAccessToken(user.getId())
-        );
+        return buildLoginResponse(user);
     }
 
     @Override
     @Transactional
-    public TokenResponse oauthLogin(OAuthLoginRequest request) {
+    public LoginResponse oauthLogin(OAuthLoginRequest request) {
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseGet(() ->
-                        userRepository.save(
-                                User.builder()
-                                        .email(request.getEmail())
-                                        .nickname(request.getNickname() != null ? request.getNickname() : "user")
-                                        .profileImageUrl(request.getProfileImageUrl())  // null OK
-                                        .password("OAUTH")
-                                        .role(Role.USER)
-                                        .deleted(false)
-                                        .build()
-                        )
-                );
-        return new TokenResponse(jwtTokenProvider.createAccessToken(user.getId()));
+                .orElseGet(() -> {
+
+                    String profileImageUrl = request.getProfileImageUrl();
+                    if (profileImageUrl == null || profileImageUrl.isBlank()) {
+                        profileImageUrl = defaultProfileImageUrl;
+                    }
+
+                    return userRepository.save(
+                            User.builder()
+                                    .email(request.getEmail())
+                                    .nickname(
+                                            request.getNickname() != null ? request.getNickname() : "user"
+                                    )
+                                    .profileImageUrl(profileImageUrl)
+                                    .password("OAUTH")
+                                    .role(Role.USER)
+                                    .deleted(false)
+                                    .build()
+                    );
+                });
+
+        return buildLoginResponse(user);
     }
 
     @Override

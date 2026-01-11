@@ -17,7 +17,7 @@ public class PhoneVerification {
     @Column(unique = true, length = 20)
     private String phoneNumber;
 
-    @Column(length = 6)
+    @Column(length = 4)
     private String code;
 
     @Column(name = "expire_at")

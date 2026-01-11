@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
@@ -20,19 +21,23 @@ public class JwtTokenProvider {
     private final Key key;
 
     private final long accessTokenExpirationTime;
+    private final long refreshTokenExpirationTime;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secretKey,
-            @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationTime
+            @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationTime,
+            @Value("${jwt.refresh-token-expiration-ms}") long refreshTokenExpirationTime
     ) {
         this.key = Keys.hmacShaKeyFor(
                 Decoders.BASE64.decode(secretKey)
         );
         this.accessTokenExpirationTime = accessTokenExpirationTime;
+        this.refreshTokenExpirationTime = refreshTokenExpirationTime;
     }
 
     /* ================= 토큰 생성 ================= */
 
+    /** Access Token 생성 */
     public String createAccessToken(Long userId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenExpirationTime);
@@ -41,7 +46,22 @@ public class JwtTokenProvider {
                 .setSubject(String.valueOf(userId))
                 .setIssuedAt(now)
                 .setExpiration(expiry)
-                .signWith(key) // ✅ deprecated 아님
+                .claim("type", "access")
+                .signWith(key)
+                .compact();
+    }
+
+    /** Refresh Token 생성 */
+    public String createRefreshToken(Long userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + refreshTokenExpirationTime);
+
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .claim("type", "refresh")
+                .signWith(key)
                 .compact();
     }
 
@@ -78,7 +98,7 @@ public class JwtTokenProvider {
         return authentication;
     }
 
-    /* ================= userId 추출 ================= */
+    /* ================= Claims / userId ================= */
 
     public Long getUserId(String token) {
         Claims claims = Jwts.parserBuilder()
@@ -88,5 +108,15 @@ public class JwtTokenProvider {
                 .getBody();
 
         return Long.valueOf(claims.getSubject());
+    }
+
+    /* ================= 만료 시간 ================= */
+
+    public long getAccessTokenExpireSeconds() {
+        return accessTokenExpirationTime / 1000;
+    }
+
+    public long getRefreshTokenExpireSeconds() {
+        return refreshTokenExpirationTime / 1000;
     }
 }
