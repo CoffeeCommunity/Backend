@@ -1,6 +1,8 @@
 package coffee.community.backend.global.security;
 
 import coffee.community.backend.global.common.ApiResponse;
+import coffee.community.backend.global.error.ErrorCode;
+import coffee.community.backend.global.error.ErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,8 +34,12 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        ApiResponse<Void> body =
-                ApiResponse.error(status, "인증이 필요합니다.", null);
+        ApiResponse<ErrorResponse> body =
+                ApiResponse.error(
+                        status,
+                        ErrorCode.AUTH_REQUIRED.getMessage(),
+                        ErrorResponse.from(ErrorCode.AUTH_REQUIRED)
+                );
 
         objectMapper.writeValue(response.getWriter(), body);
     }

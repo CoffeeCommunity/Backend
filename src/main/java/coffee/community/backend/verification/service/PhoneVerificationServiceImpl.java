@@ -9,11 +9,14 @@ import net.nurigo.sdk.message.model.Message;
 import net.nurigo.sdk.message.request.SingleMessageSendingRequest;
 import net.nurigo.sdk.message.response.SingleMessageSentResponse;
 import net.nurigo.sdk.message.service.DefaultMessageService;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -24,11 +27,13 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
 
     private final PhoneVerificationRepository repository;
     private final DefaultMessageService messageService;
+    private final MessageSource messageSource;
 
     @Value("${coolsms.from-number}")
-    private String fromNumber;  // application.yml 우선, 기본값 하드코딩
+    private String fromNumber;
 
     private static final long CODE_EXPIRE_SECONDS = 300;
+    private static final String SMS_MESSAGE_KEY = "sms.verification.code";
 
     @Override
     @Transactional
@@ -45,7 +50,11 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
             Message message = new Message();
             message.setFrom(fromNumber);
             message.setTo(phoneNumber);
-            message.setText("[CoffeeCommunity] 인증번호 [" + code + "]를 입력하세요. (5분 유효)");
+
+            Locale locale = LocaleContextHolder.getLocale();
+            String smsText = messageSource.getMessage(SMS_MESSAGE_KEY,
+                    new Object[]{code}, locale);
+            message.setText(smsText);
 
             SingleMessageSentResponse response = messageService.sendOne(
                     new SingleMessageSendingRequest(message));
@@ -77,8 +86,7 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
         repository.findByPhoneNumber(phoneNumber)
                 .ifPresentOrElse(
                         pv -> {
-                            pv.issueToken(token);
-                            repository.save(pv);
+                            repository.save(pv.issueToken(token));
                             log.info("[PHONE VERIFY] phone={}에 토큰 발급: {}", phoneNumber, token);
                         },
                         () -> log.warn("[PHONE VERIFY] phone={} 인증 정보 없음", phoneNumber)
@@ -100,10 +108,20 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
 
     @Scheduled(cron = "0 */5 * * * *")
     @Transactional
-    public void cleanupExpired() {
+    public int cleanupExpiredJob() {
         int deleted = repository.deleteExpired();
+
         if (deleted > 0) {
             log.info("만료된 인증 데이터 {}건 자동 삭제됨", deleted);
         }
+
+        return deleted;
+    }
+
+    @Override
+    public int getRetryCount(String phoneNumber) {
+        return repository.findByPhoneNumber(phoneNumber)
+                .map(PhoneVerification::getRetryCount)
+                .orElse(0);
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -43,18 +44,18 @@ public class VerificationExceptionHandler {
      * 공통 검증 에러 처리
      */
     private ResponseEntity<ApiResponse<String>> handleValidationErrors(
-            org.springframework.validation.BindingResult bindingResult, Locale locale) {
+            BindingResult bindingResult, Locale locale) {
         List<FieldError> errors = bindingResult.getFieldErrors();
         String message = errors.stream()
                 .map(fe -> {
                     String field = fe.getField();
                     String defaultMsg = fe.getDefaultMessage();
                     String msg = messageSource.getMessage("validation." + field,
-                            null, defaultMsg, locale);
+                            null, defaultMsg, locale);  // 이미 locale 사용 중
                     return field + ": " + msg;
                 })
                 .reduce((a, b) -> a + "; " + b)
-                .orElse("검증 오류");
+                .orElse(messageSource.getMessage("validation.error.default", null, "Validation error", locale));  // 다국어화
 
         log.warn("Verification validation failed: {}", message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -62,9 +63,11 @@ public class VerificationExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<String>> handleGeneral(Exception e) {
+    public ResponseEntity<ApiResponse<String>> handleGeneral(Exception e, Locale locale) {  // Locale 추가
         log.error("Verification unexpected error", e);
+        String message = messageSource.getMessage("verification.error.general", null, "Verification processing error", locale);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("인증 처리 중 오류 발생"));
+                .body(ApiResponse.error(message));
     }
+
 }

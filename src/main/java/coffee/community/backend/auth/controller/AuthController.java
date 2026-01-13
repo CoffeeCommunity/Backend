@@ -8,11 +8,16 @@ import coffee.community.backend.global.common.ApiResponse;
 import coffee.community.backend.global.security.JwtTokenProvider;
 import coffee.community.backend.user.entity.User;
 import coffee.community.backend.user.repository.UserRepository;
+import coffee.community.backend.auth.dto.AccessTokenResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,12 +52,31 @@ public class AuthController {
     /** 일반 로그인 */
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse httpResponse
     ) {
-        LoginResponse response = authService.login(request);
+        LoginResult result = authService.login(request);
 
+        // ✅ refreshToken → HttpOnly Cookie
+        ResponseCookie refreshCookie =
+                ResponseCookie.from("refreshToken", result.refreshToken())
+                        .httpOnly(true)
+                        .secure(true)
+                        .sameSite("Strict")
+                        .path("/auth/refresh")
+                        .maxAge(result.refreshTokenExpiresIn())
+                        .build();
+
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        // ✅ accessToken만 JSON 응답
         return ApiResponse.ok(
-                response,
+                new LoginResponse(
+                        result.user(),
+                        result.accessToken(),
+                        result.refreshToken(),
+                        result.expiresIn()
+                ),
                 messageSource.getMessage(
                         "auth.login.success",
                         null,
@@ -60,6 +84,52 @@ public class AuthController {
                 )
         );
     }
+
+    @PostMapping("/refresh")
+    public ApiResponse<AccessTokenResponse> refresh(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken
+    ) {
+        if (refreshToken == null) {
+            throw new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED);
+        }
+
+        AccessTokenResponse response =
+                authService.refreshAccessToken(refreshToken);
+
+        return ApiResponse.ok(
+                response,
+                messageSource.getMessage(
+                        "auth.token.refresh.success",
+                        null,
+                        LocaleContextHolder.getLocale()
+                )
+        );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
+        boolean success = false;
+        if (refreshToken != null) {
+            success = authService.logout(refreshToken);
+        }
+
+        // 쿠키 삭제 (성공 여부와 무관)
+        ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+                .path("/auth/refresh")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie.toString());
+
+        // i18n 메시지 success에 따라 동적
+        String msgKey = success ? "auth.logout.success" : "auth.logout.already";
+        String successMsg = messageSource.getMessage(msgKey, null, LocaleContextHolder.getLocale());
+
+        return ResponseEntity.ok(ApiResponse.ok(successMsg, null));
+    }
+
 
     /** OAuth 로그인 */
     @PostMapping("/oauth/login")

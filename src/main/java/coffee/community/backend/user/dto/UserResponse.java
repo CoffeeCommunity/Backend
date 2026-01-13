@@ -11,9 +11,9 @@ public class UserResponse {
     private Long id;
     private String email;
     private String nickname;
-    private String profileImageUrl;  // 추가
-    private String bio;              // 추가
-    private String phoneNumber;      // 선택 (마스킹 추천)
+    private String profileImageUrl;
+    private String bio;
+    private String phoneNumber;
 
     public static UserResponse from(User user) {
         return UserResponse.builder()

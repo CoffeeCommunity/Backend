@@ -1,5 +1,6 @@
 package coffee.community.backend.verification.controller;
 
+import coffee.community.backend.auth.dto.PhoneSendResponse;
 import coffee.community.backend.global.common.ApiResponse;
 import coffee.community.backend.verification.dto.PhoneSendRequest;
 import coffee.community.backend.verification.dto.PhoneVerifyRequest;
@@ -23,26 +24,26 @@ public class PhoneVerificationController {
      * 인증번호 발송
      */
     @PostMapping("/send")
-    public ApiResponse<Void> sendCode(@RequestBody @Valid PhoneSendRequest request) {
-
+    public ApiResponse<PhoneSendResponse> sendCode(@RequestBody @Valid PhoneSendRequest request) {
         boolean success = phoneVerificationService.sendCode(request.getPhoneNumber());
 
         if (!success) {
             return ApiResponse.error(
-                    messageSource.getMessage(
-                            "auth.phone.send.failed",
-                            null,
-                            LocaleContextHolder.getLocale()
-                    )
+                    messageSource.getMessage("auth.phone.send.failed", null, LocaleContextHolder.getLocale())
             );
         }
 
+        // retryCount 추가 (Service에 메서드만 있으면 OK)
         return ApiResponse.ok(
-                messageSource.getMessage(
-                        "auth.phone.send.success",
-                        null,
-                        LocaleContextHolder.getLocale()
-                )
+                PhoneSendResponse.builder()
+                        .phoneNumber(request.getPhoneNumber())
+                        .message(messageSource.getMessage(  // ← 다국어 처리
+                                "auth.phone.send.success",
+                                null,
+                                LocaleContextHolder.getLocale()
+                        ))
+                        .retryCount(phoneVerificationService.getRetryCount(request.getPhoneNumber()))  // ← 이 줄만!
+                        .build()
         );
     }
 

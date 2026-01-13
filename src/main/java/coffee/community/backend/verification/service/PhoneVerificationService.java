@@ -24,4 +24,6 @@ public interface PhoneVerificationService {
      * @return 검증 성공 여부
      */
     boolean verifyToken(String phoneNumber, String token);
+
+    int getRetryCount(String phoneNumber);
 }

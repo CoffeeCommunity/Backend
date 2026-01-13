@@ -1,5 +1,6 @@
 package coffee.community.backend.global.i18n;
 
+import coffee.community.backend.global.exception.MsgSourceLoadFailedException;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.core.io.Resource;
@@ -38,7 +39,6 @@ public class YamlMessageSource extends AbstractMessageSource {
         return message != null ? new MessageFormat(message, locale) : null;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Map<String, String>> loadYamlMessages(String basename) {
         Map<String, Map<String, String>> result = new HashMap<>();
 
@@ -55,16 +55,18 @@ public class YamlMessageSource extends AbstractMessageSource {
                 String filename = resource.getFilename();
                 String language = extractLanguage(filename);
 
+
+
                 try (InputStream is = resource.getInputStream()) {
-                    Map<String, Object> yamlData =
-                            (Map<String, Object>) yaml.load(is);
+                    Map<String, Object> yamlData = yaml.load(is);  // Object → Map 자동 추론
 
                     Map<String, String> flatMap = flatten("", yamlData);
                     result.put(language, flatMap);
                 }
+
             }
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to load YAML messages", e);
+            throw new MsgSourceLoadFailedException(e);
         }
 
         return result;

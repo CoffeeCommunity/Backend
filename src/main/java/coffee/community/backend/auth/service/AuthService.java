@@ -13,7 +13,7 @@ public interface AuthService {
     /**
      * 일반 로그인
      */
-    LoginResponse login(LoginRequest request);
+    LoginResult login(LoginRequest request);
 
     /**
      * OAuth 로그인
@@ -25,4 +25,8 @@ public interface AuthService {
      * @return 탈퇴 성공 여부
      */
     boolean deleteMe(Long userId);
+
+    AccessTokenResponse refreshAccessToken(String refreshToken);
+
+    boolean logout(String refreshToken);
 }

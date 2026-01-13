@@ -119,4 +119,32 @@ public class JwtTokenProvider {
     public long getRefreshTokenExpireSeconds() {
         return refreshTokenExpirationTime / 1000;
     }
+
+    public boolean validateRefreshToken(String refreshToken) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(refreshToken)
+                    .getBody();
+
+            // type 확인
+            String type = claims.get("type", String.class);
+            return "refresh".equals(type);
+
+        } catch (JwtException | IllegalArgumentException _) {
+            return false;
+        }
+    }
+
+    public Long getUserIdFromRefreshToken(String refreshToken) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(refreshToken)
+                .getBody();
+
+        // subject에 userId를 String으로 넣어놨기 때문에 Long으로 변환
+        return Long.valueOf(claims.getSubject());
+    }
 }
