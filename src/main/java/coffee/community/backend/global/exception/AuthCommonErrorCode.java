@@ -8,8 +8,6 @@ import org.springframework.http.HttpStatus;
 @Getter
 public enum AuthCommonErrorCode implements ErrorCode {
 
-    LOGIN_FAILED(CommonMessageKey.AUTH_LOGIN_FAILED, HttpStatus.UNAUTHORIZED),
-    TOKEN_EXPIRED(CommonMessageKey.AUTH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(CommonMessageKey.AUTH_UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
 
     private final MessageKey messageKey;

@@ -51,6 +51,11 @@ public class User extends BaseTimeEntity {
         return this;
     }
 
+    public User updatePhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+        return this;
+    }
+
     public User updateBio(String bio) {
         this.bio = bio;
         return this;

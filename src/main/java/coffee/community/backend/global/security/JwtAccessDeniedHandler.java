@@ -7,42 +7,40 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
 import org.springframework.context.MessageSource;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
 
     @Override
-    public void commence(
+    public void handle(
             HttpServletRequest request,
             HttpServletResponse response,
-            @NonNull AuthenticationException authException
+            AccessDeniedException accessDeniedException
     ) throws IOException {
 
-        ErrorCode errorCode = ErrorCode.AUTH_REQUIRED;
+        ErrorCode errorCode = ErrorCode.ACCESS_DENIED;
         int status = errorCode.getStatus().value();
+
+        String message = messageSource.getMessage(
+                errorCode.getMessageKey(),
+                null,
+                request.getLocale()
+        );
 
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-
-        // 🔥 messageKey → 실제 메시지 변환
-        String message = messageSource.getMessage(
-                errorCode.getMessageKey(),
-                null,
-                request.getLocale() // ko_KR
-        );
 
         ApiResponse<ErrorResponse> body =
                 ApiResponse.error(

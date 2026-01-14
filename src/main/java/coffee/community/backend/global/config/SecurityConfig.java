@@ -1,15 +1,13 @@
 package coffee.community.backend.global.config;
 
-import coffee.community.backend.global.common.ApiResponse;
+import coffee.community.backend.global.exception.SecurityConfigException;
+import coffee.community.backend.global.security.JwtAccessDeniedHandler;
 import coffee.community.backend.global.security.JwtAuthenticationEntryPoint;
 import coffee.community.backend.global.security.JwtAuthenticationFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,6 +24,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     /** ✅ PasswordEncoder Bean */
     @Bean
@@ -35,10 +34,7 @@ public class SecurityConfig {
 
     /** ✅ Security Filter Chain */
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            ObjectMapper objectMapper
-    ) {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
 
         try {
             http
@@ -52,11 +48,14 @@ public class SecurityConfig {
 
                     // 권한 설정
                     .authorizeHttpRequests(auth -> auth
-                            .requestMatchers(
-                                    "/swagger-ui/**",
-                                    "/v3/api-docs/**"
+                            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                            .requestMatchers(HttpMethod.POST,
+                                    "/auth/signup",
+                                    "/auth/login",
+                                    "/auth/oauth/login",
+                                    "/auth/phone/send",
+                                    "/auth/phone/verify"
                             ).permitAll()
-                            .requestMatchers("/auth/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                             .anyRequest().authenticated()
                     )
@@ -69,25 +68,14 @@ public class SecurityConfig {
 
                     // 예외 처리
                     .exceptionHandling(ex -> ex
-                            .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401
-                            .accessDeniedHandler((request, response, accessDeniedException) -> {
-
-                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                                response.setCharacterEncoding("UTF-8");
-
-                                ApiResponse<String> body =
-                                        ApiResponse.error("접근 권한이 없습니다.");
-
-                                objectMapper.writeValue(response.getWriter(), body);
-                            })
+                            .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                            .accessDeniedHandler(jwtAccessDeniedHandler)
                     );
 
             return http.build();
 
         } catch (Exception e) {
-            // ❗ Security 설정 실패는 치명적이므로 런타임 예외로 감싸서 올림
-            throw new IllegalStateException("SecurityConfig 설정 중 오류 발생", e);
+            throw new SecurityConfigException(e);
         }
     }
 }

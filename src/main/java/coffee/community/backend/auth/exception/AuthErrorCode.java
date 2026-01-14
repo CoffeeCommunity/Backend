@@ -28,6 +28,10 @@ public enum AuthErrorCode implements MessageKey {
     INVALID_CREDENTIALS(
             "auth.login.failed",
             HttpStatus.UNAUTHORIZED
+    ),
+    INVALID_REFRESH_TOKEN(
+            "auth.invalid.refresh-token",
+            HttpStatus.UNAUTHORIZED
     );
 
     private final String messageKey;

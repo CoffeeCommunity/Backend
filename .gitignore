@@ -42,3 +42,5 @@ application-*.yml
 
 # i18n messages
 messages_*.yml
+
+keystore.p12

@@ -3,13 +3,21 @@ package coffee.community.backend.verification.service;
 import coffee.community.backend.verification.entity.PhoneVerification;
 import coffee.community.backend.verification.repository.PhoneVerificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import net.nurigo.sdk.message.model.Message;
+import net.nurigo.sdk.message.request.SingleMessageSendingRequest;
+import net.nurigo.sdk.message.response.SingleMessageSentResponse;
+import net.nurigo.sdk.message.service.DefaultMessageService;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
@@ -18,19 +26,49 @@ import java.util.concurrent.ThreadLocalRandom;
 public class PhoneVerificationServiceImpl implements PhoneVerificationService {
 
     private final PhoneVerificationRepository repository;
+    private final DefaultMessageService messageService;
+    private final MessageSource messageSource;
 
-    private static final long CODE_EXPIRE_SECONDS = 180;
+    @Value("${coolsms.from-number}")
+    private String fromNumber;
+
+    private static final long CODE_EXPIRE_SECONDS = 300;
+    private static final String SMS_MESSAGE_KEY = "sms.verification.code";
 
     @Override
+    @Transactional
     public boolean sendCode(String phoneNumber) {
         int deleted = repository.deleteByPhoneNumber(phoneNumber);
         log.debug("기존 인증 레코드 {}건 삭제됨", deleted);
 
         String code = generateCode();
-        repository.save(new PhoneVerification(phoneNumber, code,
-                Instant.now().plusSeconds(CODE_EXPIRE_SECONDS)));
-        log.info("[PHONE VERIFY] phone={}에 인증번호 발송: {}", phoneNumber, code);
-        return true;
+        PhoneVerification pv = new PhoneVerification(phoneNumber, code,
+                Instant.now().plusSeconds(CODE_EXPIRE_SECONDS));
+        repository.save(pv);
+
+        try {
+            Message message = new Message();
+            message.setFrom(fromNumber);
+            message.setTo(phoneNumber);
+
+            Locale locale = LocaleContextHolder.getLocale();
+            String smsText = messageSource.getMessage(SMS_MESSAGE_KEY,
+                    new Object[]{code}, locale);
+            message.setText(smsText);
+
+            SingleMessageSentResponse response = messageService.sendOne(
+                    new SingleMessageSendingRequest(message));
+
+            log.info("[PHONE VERIFY SMS] {}에 발송 성공: {} (groupId={})",
+                    phoneNumber, code, Objects.requireNonNull(response).getGroupId());
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("SMS 전송 실패 phone={}, code={}", phoneNumber, code, e);
+            repository.deleteByPhoneNumber(phoneNumber);
+            return false;
+        }
     }
 
     @Override
@@ -42,13 +80,13 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
     }
 
     @Override
+    @Transactional
     public String issueToken(String phoneNumber) {
-        String token = UUID.randomUUID().toString();
+        String token = java.util.UUID.randomUUID().toString();
         repository.findByPhoneNumber(phoneNumber)
                 .ifPresentOrElse(
                         pv -> {
-                            pv.issueToken(token);
-                            repository.save(pv);
+                            repository.save(pv.issueToken(token));
                             log.info("[PHONE VERIFY] phone={}에 토큰 발급: {}", phoneNumber, token);
                         },
                         () -> log.warn("[PHONE VERIFY] phone={} 인증 정보 없음", phoneNumber)
@@ -64,16 +102,26 @@ public class PhoneVerificationServiceImpl implements PhoneVerificationService {
     }
 
     private String generateCode() {
-        int codeInt = ThreadLocalRandom.current().nextInt(100_000, 1_000_000);
-        return String.format("%06d", codeInt);  // 6자리 고정 (앞 0 패딩)
+        int codeInt = ThreadLocalRandom.current().nextInt(1000, 10000);
+        return String.format("%04d", codeInt);
     }
 
-    @Scheduled(cron = "0 */5 * * * *")  // 5분마다 실행
+    @Scheduled(cron = "0 */5 * * * *")
     @Transactional
-    public void cleanupExpired() {
+    public int cleanupExpiredJob() {
         int deleted = repository.deleteExpired();
+
         if (deleted > 0) {
             log.info("만료된 인증 데이터 {}건 자동 삭제됨", deleted);
         }
+
+        return deleted;
+    }
+
+    @Override
+    public int getRetryCount(String phoneNumber) {
+        return repository.findByPhoneNumber(phoneNumber)
+                .map(PhoneVerification::getRetryCount)
+                .orElse(0);
     }
 }

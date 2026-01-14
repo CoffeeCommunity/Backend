@@ -11,6 +11,6 @@ public class PhoneVerifyRequest {
     private String phoneNumber;
 
     @NotBlank
-    @Pattern(regexp = "^\\d{6}$")  // 6자리 숫자 (generateCode와 맞춤)
+    @Pattern(regexp = "^\\d{4}$")  // 6자리 숫자 (generateCode와 맞춤)
     private String code;
 }
