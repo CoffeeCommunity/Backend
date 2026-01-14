@@ -48,10 +48,7 @@ public class SecurityConfig {
 
                     // 권한 설정
                     .authorizeHttpRequests(auth -> auth
-                            // swagger
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-                            // 인증 없이 가능한 AUTH API (POST만)
                             .requestMatchers(HttpMethod.POST,
                                     "/auth/signup",
                                     "/auth/login",
@@ -59,11 +56,7 @@ public class SecurityConfig {
                                     "/auth/phone/send",
                                     "/auth/phone/verify"
                             ).permitAll()
-
-                            // 공개 GET API
                             .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
-
-                            // 그 외는 전부 인증 필요
                             .anyRequest().authenticated()
                     )
 
@@ -73,10 +66,10 @@ public class SecurityConfig {
                             UsernamePasswordAuthenticationFilter.class
                     )
 
-                    // 🔥 예외 처리 (여기가 핵심)
+                    // 예외 처리
                     .exceptionHandling(ex -> ex
-                            .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401
-                            .accessDeniedHandler(jwtAccessDeniedHandler)            // 403
+                            .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                            .accessDeniedHandler(jwtAccessDeniedHandler)
                     );
 
             return http.build();
