@@ -5,6 +5,9 @@ public record ErrorResponse(
         String message
 ) {
     public static ErrorResponse from(ErrorCode errorCode) {
-        return new ErrorResponse(errorCode.getCode(), errorCode.getMessage());
+        return new ErrorResponse(
+                errorCode.getCode(),
+                errorCode.getMessageKey()
+        );
     }
 }

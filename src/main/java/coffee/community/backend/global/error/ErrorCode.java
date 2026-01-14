@@ -2,14 +2,16 @@ package coffee.community.backend.global.error;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
 public enum ErrorCode {
-    AUTH_REQUIRED("AUTH_REQUIRED", "error.auth.required"),
-    ACCESS_DENIED("ACCESS_DENIED", "error.access.denied"),
-    MSG_SOURCE_LOAD_FAILED("MSG_SOURCE_LOAD_FAILED", "error.msg.source.load.failed");
 
+    AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "error.auth.required"),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "error.access.denied");
+
+    private final HttpStatus status;
     private final String code;
-    private final String message;
+    private final String messageKey;
 }

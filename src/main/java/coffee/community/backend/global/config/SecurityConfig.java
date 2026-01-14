@@ -1,7 +1,7 @@
 package coffee.community.backend.global.config;
 
-import coffee.community.backend.global.exception.AccessDeniedException;
 import coffee.community.backend.global.exception.SecurityConfigException;
+import coffee.community.backend.global.security.JwtAccessDeniedHandler;
 import coffee.community.backend.global.security.JwtAuthenticationEntryPoint;
 import coffee.community.backend.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +24,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     /** ✅ PasswordEncoder Bean */
     @Bean
@@ -50,7 +51,7 @@ public class SecurityConfig {
                             // swagger
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                            // ✅ 인증 없이 가능한 AUTH API (POST만!)
+                            // 인증 없이 가능한 AUTH API (POST만)
                             .requestMatchers(HttpMethod.POST,
                                     "/auth/signup",
                                     "/auth/login",
@@ -59,28 +60,29 @@ public class SecurityConfig {
                                     "/auth/phone/verify"
                             ).permitAll()
 
-                            // ✅ 공개 GET API
+                            // 공개 GET API
                             .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
 
-                            // ❌ 그 외는 전부 인증 필요
+                            // 그 외는 전부 인증 필요
                             .anyRequest().authenticated()
                     )
 
                     // JWT 필터
-                    .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                    .addFilterBefore(
+                            jwtAuthenticationFilter,
+                            UsernamePasswordAuthenticationFilter.class
+                    )
 
-                    // 예외 처리 - i18n 예외 throw로 전역 핸들러 위임
+                    // 🔥 예외 처리 (여기가 핵심)
                     .exceptionHandling(ex -> ex
-                            .authenticationEntryPoint(jwtAuthenticationEntryPoint)  // 401
-                            .accessDeniedHandler((request, response, ignored) -> {
-                                throw new AccessDeniedException();
-                            })
+                            .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401
+                            .accessDeniedHandler(jwtAccessDeniedHandler)            // 403
                     );
 
             return http.build();
 
         } catch (Exception e) {
-            throw new SecurityConfigException(e);  // ✅ concrete subclass
+            throw new SecurityConfigException(e);
         }
     }
 }
